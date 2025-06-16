@@ -13,7 +13,7 @@ https://you-sk.github.io/web-synth-drum-machine/
 * **ステップシーケンサー**: 8, 12, 16, 24, 32ステップから長さを選択可能。
 * **2種類のドラムキット**: "808"と"909"のサウンドを切り替え可能。
 * **ボリューム調整**: 各楽器の音量を個別に調整できます。
-* **パターンの保存・読込**: 作成したリズムパターンをFirebase Firestoreに名前を付けて保存し、リストから呼び出せます。
+* **パターンの保存・読込**: 作成したリズムパターンに名前を付けて保存し、リストから呼び出せます。
 * **レスポンシブデザイン**: PCでもスマートフォンでも操作しやすいUI。
 
 ## 使い方
@@ -30,7 +30,6 @@ https://you-sk.github.io/web-synth-drum-machine/
 * Tailwind CSS
 * JavaScript (ESM)
 * Web Audio API
-* Firebase (Firestore, Authentication)
 
 ## License
 
