@@ -35,7 +35,6 @@
         <div class="bg-gray-800/80 backdrop-blur-sm p-4 rounded-lg shadow-2xl mb-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                 
-                <!-- Transport Controls (Left) -->
                 <div class="flex items-center justify-center md:justify-start gap-4">
                     <button id="play-stop" class="w-24 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-all shadow-md">再生</button>
                     <div class="flex items-center gap-3 w-full max-w-xs">
@@ -45,7 +44,6 @@
                     </div>
                 </div>
 
-                <!-- Sequencer/Kit Settings (Center) -->
                 <div class="flex items-center justify-center gap-4">
                     <select id="kit-selector" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-semibold"></select>
                     <select id="step-count-selector" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-semibold">
@@ -57,7 +55,6 @@
                     </select>
                 </div>
                 
-                <!-- File Management (Right) -->
                 <div class="flex items-center justify-center md:justify-end gap-2 flex-wrap">
                      <input type="text" id="pattern-name" placeholder="パターン名" class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-white w-32 text-sm">
                      <button id="save-pattern" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-3 rounded-lg text-sm">保存</button>
@@ -68,7 +65,6 @@
             </div>
         </div>
 
-        <!-- Sequencer -->
         <div id="sequencer" class="bg-gray-800/50 p-4 rounded-lg shadow-lg flex flex-col gap-3"></div>
     </div>
 
@@ -92,15 +88,10 @@
         </div>
     </div>
     
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+<script>
     document.addEventListener('DOMContentLoaded', () => {
-        let audioContext, db, auth, userId, patternsCollectionRef;
+        let audioContext;
         let isPlaying = false, currentStep = 0, tempo = 120, scheduler, currentKit = '808', numberOfSteps = 16;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const tracks = [
             { name: 'キック', inst: 'kick', steps: Array(16).fill(0), volume: 1.0 }, { name: 'スネア', inst: 'snare', steps: Array(16).fill(0), volume: 0.8 },
             { name: 'ハット (閉)', inst: 'closedHat', steps: Array(16).fill(0), volume: 0.6 }, { name: 'ハット (開)', inst: 'openHat', steps: Array(16).fill(0), volume: 0.7 },
@@ -108,19 +99,14 @@
         const drumKits = { '808':{name:"808 Kit",kick:(c,v)=>{const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.type="sine",o.frequency.setValueAtTime(150,t),o.frequency.exponentialRampToValueAtTime(.01,t+.15),g.gain.setValueAtTime(v,t),g.gain.exponentialRampToValueAtTime(1e-3*v,t+.4),o.connect(g).connect(c.destination),o.start(t),o.stop(t+.4)},snare:(c,v)=>{const n=c.createBufferSource(),g=c.createGain(),t=c.currentTime,r=c.sampleRate,e=c.createBuffer(1,r,r);let i=e.getChannelData(0);for(let o=0;o<r;o++)i[o]=2*Math.random()-1;n.buffer=e;const a=c.createBiquadFilter();a.type="highpass",a.frequency.value=1200,g.gain.setValueAtTime(.8*v,t),g.gain.exponentialRampToValueAtTime(.01*v,t+.15),n.connect(a).connect(g).connect(c.destination);const s=c.createOscillator(),f=c.createGain();s.type="triangle",s.frequency.value=180,f.gain.setValueAtTime(.6*v,t),f.gain.exponentialRampToValueAtTime(.01*v,t+.1),s.connect(f).connect(c.destination),n.start(t),s.start(t),n.stop(t+.2),s.stop(t+.1)},closedHat:(c,v)=>createHiHat(c,v,.08),openHat:(c,v)=>createHiHat(c,v,.4)},'909':{name:"909 Kit",kick:(c,v)=>{const o=c.createOscillator(),g=c.createGain(),t=c.currentTime;o.type="triangle",o.frequency.setValueAtTime(120,t),o.frequency.exponentialRampToValueAtTime(.01,t+.2),g.gain.setValueAtTime(1.2*v,t),g.gain.linearRampToValueAtTime(0,t+.25),o.connect(g).connect(c.destination),o.start(t),o.stop(t+.25)},snare:(c,v)=>{const n=c.createBufferSource(),g=c.createGain(),t=c.currentTime,r=c.sampleRate,e=c.createBuffer(1,r,r);let i=e.getChannelData(0);for(let o=0;o<r;o++)i[o]=2*Math.random()-1;n.buffer=e;const a=c.createBiquadFilter();a.type="bandpass",a.frequency.value=2e3,g.gain.setValueAtTime(v,t),g.gain.exponentialRampToValueAtTime(.01*v,t+.2),n.connect(a).connect(g).connect(c.destination);const s=c.createOscillator(),f=c.createGain();s.type="sine",s.frequency.value=200,f.gain.setValueAtTime(.5*v,t),f.gain.exponentialRampToValueAtTime(.01*v,t+.08),s.connect(f).connect(c.destination),n.start(t),s.start(t),n.stop(t+.2),s.stop(t+.08)},closedHat:(c,v)=>createHiHat(c,.8*v,.06),openHat:(c,v)=>createHiHat(c,.8*v,.5)}};
         function createHiHat(c,v,d){const g=c.createGain(),t=c.currentTime;g.gain.setValueAtTime(v,t),g.gain.exponentialRampToValueAtTime(1e-3*v,t+d);const h=[2,3,4.16,5.43,6.79,8.21],p=c.createBiquadFilter();p.type="bandpass",p.frequency.value=1e4;const f=c.createBiquadFilter();f.type="highpass",f.frequency.value=7e3,h.forEach(e=>{const o=c.createOscillator();o.type="square",o.frequency.value=40*e+20*Math.random(),o.connect(p),o.start(t),o.stop(t+d)}),p.connect(f).connect(g).connect(c.destination)}
         const ui = { appContainer: document.getElementById('app'), startOverlay: document.getElementById('start-overlay'), playStopButton: document.getElementById('play-stop'), clearButton: document.getElementById('clear-pattern'), tempoSlider: document.getElementById('tempo'), tempoValue: document.getElementById('tempo-value'), sequencerContainer: document.getElementById('sequencer'), saveButton: document.getElementById('save-pattern'), patternNameInput: document.getElementById('pattern-name'), messageArea: document.getElementById('message-area'), kitSelector: document.getElementById('kit-selector'), stepCountSelector: document.getElementById('step-count-selector'), loadListButton: document.getElementById('load-list-button'), loadModalOverlay: document.getElementById('load-modal-overlay'), closeModalButton: document.getElementById('close-load-modal-button'), patternList: document.getElementById('pattern-list'), confirmModalOverlay: document.getElementById('confirm-modal-overlay'), confirmMessage: document.getElementById('confirm-modal-message'), confirmYes: document.getElementById('confirm-yes'), confirmNo: document.getElementById('confirm-no') };
-
-        async function initFirebase() { try { const firebaseConfig = JSON.parse(__firebase_config); const app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); userId = auth.currentUser?.uid || crypto.randomUUID(); patternsCollectionRef = collection(db, "artifacts", appId, "users", userId, "patterns"); } catch (error) { console.error("Firebase init failed:", error); showMessage("DB接続エラー", true); } }
         
-        // Initial UI setup on page load
         populateKitSelector();
         buildSequencerUI();
         
-        // Start overlay click listener
         ui.startOverlay.addEventListener('click', async () => { 
             if (audioContext) return; 
             try { 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)(); 
-                await initFirebase(); 
                 ui.startOverlay.style.opacity = 0;
                 setTimeout(() => ui.startOverlay.classList.add('hidden'), 300);
                 setupEventListeners(); 
@@ -137,10 +123,7 @@
                 const trackDiv = document.createElement('div'); trackDiv.className = 'flex items-center gap-2 sm:gap-4';
                 const labelDiv = document.createElement('div'); labelDiv.className = 'w-16 sm:w-20 text-center text-xs sm:text-sm p-2 bg-gray-700 rounded-md cursor-pointer select-none';
                 labelDiv.textContent = track.name; 
-                // Play sound on click only after AudioContext is ready
-                labelDiv.addEventListener('click', () => {
-                    if (audioContext) drumKits[currentKit][track.inst](audioContext, track.volume)
-                });
+                labelDiv.addEventListener('click', () => { if (audioContext) drumKits[currentKit][track.inst](audioContext, track.volume) });
                 trackDiv.appendChild(labelDiv);
                 const gridDiv = document.createElement('div'); gridDiv.className = 'sequencer-grid flex-1'; gridDiv.style.gridTemplateColumns = `repeat(${numberOfSteps}, 1fr)`;
                 for (let i = 0; i < numberOfSteps; i++) {
@@ -173,27 +156,19 @@
             numberOfSteps = newCount;
             tracks.forEach(track => {
                 const newSteps = Array(newCount).fill(0);
-                for(let i = 0; i < Math.min(track.steps.length, newCount); i++) {
-                    newSteps[i] = track.steps[i];
-                }
+                for(let i = 0; i < Math.min(track.steps.length, newCount); i++) { newSteps[i] = track.steps[i]; }
                 track.steps = newSteps;
             });
             buildSequencerUI();
         }
 
         function toggleStep(e) { 
-            if (!audioContext) {
-                showMessage("最初に画面をタップしてください", true);
-                return;
-            }
+            if (!audioContext) { showMessage("最初に画面をタップしてください", true); return; }
             const{track:t,step:s}=e.target.dataset;const r=tracks[t],a=1===r.steps[s];r.steps[s]=a?0:1,e.target.classList.toggle("active"),a||drumKits[currentKit][r.inst](audioContext,r.volume)
         }
         function handleTempoChange(e) { tempo = parseInt(e.target.value, 10); ui.tempoValue.textContent = tempo; if (isPlaying) { stop(); play(); } }
         function togglePlay() { 
-             if (!audioContext) {
-                showMessage("最初に画面をタップしてください", true);
-                return;
-            }
+             if (!audioContext) { showMessage("最初に画面をタップしてください", true); return; }
             isPlaying ? stop() : play(); 
         }
         function play() { isPlaying = true; currentStep = 0; ui.playStopButton.textContent = '停止'; ui.playStopButton.classList.replace('bg-blue-600', 'bg-red-600'); ui.playStopButton.classList.replace('hover:bg-blue-700', 'hover:bg-red-700'); scheduler = setInterval(runStep, (60 / tempo) * 250); }
@@ -203,24 +178,35 @@
         function clearPattern() { tracks.forEach(track => track.steps.fill(0)); buildSequencerUI(); showMessage("パターンをクリアしました"); }
         function showMessage(msg, isError=false) { ui.messageArea.textContent = msg; ui.messageArea.style.color = isError ? '#f87171' : '#4ade80'; ui.messageArea.style.opacity = '1'; setTimeout(() => ui.messageArea.style.opacity = '0', 3000); }
 
-        async function openLoadModal() {
+        const STORAGE_KEY = 'synthDrumPatterns';
+        
+        function getSavedPatterns() {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        }
+
+        function savePatterns(patterns) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(patterns));
+        }
+
+        function openLoadModal() {
             if (!audioContext) { showMessage("最初に画面をタップしてください", true); return; }
-            ui.loadModalOverlay.classList.remove('hidden'); ui.patternList.innerHTML = `<p class="text-gray-400">読み込み中...</p>`;
-            try {
-                const querySnapshot = await getDocs(patternsCollectionRef);
-                ui.patternList.innerHTML = ''; // Clear loading text
-                if (querySnapshot.empty) { ui.patternList.innerHTML = `<p class="text-gray-400">保存されたパターンはありません。</p>`; return; }
-                querySnapshot.forEach(doc => {
-                    const pEl = document.createElement('div'); pEl.className = 'flex justify-between items-center p-2 hover:bg-gray-700 rounded';
-                    const nameEl = document.createElement('span'); nameEl.textContent = doc.id; pEl.appendChild(nameEl);
-                    const btnsDiv = document.createElement('div');
-                    const loadBtn = document.createElement('button'); loadBtn.textContent = '読込'; loadBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded';
-                    loadBtn.onclick = () => loadPattern(doc.id); btnsDiv.appendChild(loadBtn);
-                    const delBtn = document.createElement('button'); delBtn.textContent = '削除'; delBtn.className = 'bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded ml-2';
-                    delBtn.onclick = () => deletePattern(doc.id, pEl); btnsDiv.appendChild(delBtn);
-                    pEl.appendChild(btnsDiv); ui.patternList.appendChild(pEl);
-                });
-            } catch (e) { console.error("Error fetching patterns:", e); ui.patternList.innerHTML = `<p class="text-red-500">パターンの読み込みに失敗しました。</p>`; }
+            ui.loadModalOverlay.classList.remove('hidden'); 
+            ui.patternList.innerHTML = '';
+            const patterns = getSavedPatterns();
+            if (Object.keys(patterns).length === 0) {
+                ui.patternList.innerHTML = `<p class="text-gray-400">保存されたパターンはありません。</p>`;
+                return;
+            }
+            for (const name in patterns) {
+                const pEl = document.createElement('div'); pEl.className = 'flex justify-between items-center p-2 hover:bg-gray-700 rounded';
+                const nameEl = document.createElement('span'); nameEl.textContent = name; pEl.appendChild(nameEl);
+                const btnsDiv = document.createElement('div');
+                const loadBtn = document.createElement('button'); loadBtn.textContent = '読込'; loadBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-2 rounded';
+                loadBtn.onclick = () => loadPattern(name); btnsDiv.appendChild(loadBtn);
+                const delBtn = document.createElement('button'); delBtn.textContent = '削除'; delBtn.className = 'bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-2 rounded ml-2';
+                delBtn.onclick = () => deletePattern(name, pEl); btnsDiv.appendChild(delBtn);
+                pEl.appendChild(btnsDiv); ui.patternList.appendChild(pEl);
+            }
         }
         function closeLoadModal() { ui.loadModalOverlay.classList.add('hidden'); }
 
@@ -233,55 +219,59 @@
             };
         }
 
-        async function savePattern() {
-            if (!db || !audioContext) { showMessage("DB未接続、またはオーディオが初期化されていません", true); return; }
+        function savePattern() {
             const name = ui.patternNameInput.value.trim();
-            if (!name) return showMessage("パターン名を入力してください", true);
-            const docRef = doc(patternsCollectionRef, name);
-            const docSnap = await getDoc(docRef);
-            const saveData = async () => {
+            if (!name) { showMessage("パターン名を入力してください", true); return; }
+            
+            const patterns = getSavedPatterns();
+            const saveData = () => {
                 const patternData = { name, tempo, kit: currentKit, numberOfSteps, tracks: tracks.map(t => ({ steps: t.steps, volume: t.volume })) };
-                try { await setDoc(docRef, patternData); showMessage(`「${name}」を保存しました`); } catch (e) { console.error("Save failed:", e); showMessage("保存に失敗", true); }
+                patterns[name] = patternData;
+                savePatterns(patterns);
+                showMessage(`「${name}」を保存しました`);
             };
-            if (docSnap.exists()) { showConfirmModal(`「${name}」は既に存在します。上書きしますか？`, saveData); } else { saveData(); }
+
+            if (patterns[name]) {
+                showConfirmModal(`「${name}」は既に存在します。上書きしますか？`, saveData);
+            } else {
+                saveData();
+            }
         }
 
-        async function loadPattern(patternName) {
-            if (!db) return showMessage("DB未接続", true);
-            try {
-                const docRef = doc(patternsCollectionRef, patternName);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    tempo = data.tempo;
-                    currentKit = data.kit || '808';
-                    numberOfSteps = data.numberOfSteps || 16;
-                    ui.tempoSlider.value = tempo; ui.tempoValue.textContent = tempo;
-                    ui.patternNameInput.value = data.name; ui.kitSelector.value = currentKit;
-                    ui.stepCountSelector.value = numberOfSteps;
-                    tracks.forEach((track, i) => {
-                        const newSteps = Array(numberOfSteps).fill(0);
-                        if (data.tracks[i]) {
-                           track.volume = data.tracks[i].volume;
-                           const loadedSteps = data.tracks[i].steps;
-                           for(let j=0; j < Math.min(loadedSteps.length, numberOfSteps); j++) {
-                               newSteps[j] = loadedSteps[j];
-                           }
+        function loadPattern(patternName) {
+            const patterns = getSavedPatterns();
+            const data = patterns[patternName];
+            if (data) {
+                tempo = data.tempo;
+                currentKit = data.kit || '808';
+                numberOfSteps = data.numberOfSteps || 16;
+                ui.tempoSlider.value = tempo; ui.tempoValue.textContent = tempo;
+                ui.patternNameInput.value = data.name; ui.kitSelector.value = currentKit;
+                ui.stepCountSelector.value = numberOfSteps;
+                tracks.forEach((track, i) => {
+                    const newSteps = Array(numberOfSteps).fill(0);
+                    if (data.tracks[i]) {
+                        track.volume = data.tracks[i].volume;
+                        const loadedSteps = data.tracks[i].steps;
+                        for(let j=0; j < Math.min(loadedSteps.length, numberOfSteps); j++) {
+                            newSteps[j] = loadedSteps[j];
                         }
-                        track.steps = newSteps;
-                    });
-                    buildSequencerUI(); showMessage(`読込成功: ${data.name}`); closeLoadModal();
-                } else { showMessage("パターンが見つかりません", true); }
-            } catch (e) { console.error("Load failed:", e); showMessage("読込に失敗", true); }
+                    }
+                    track.steps = newSteps;
+                });
+                buildSequencerUI(); showMessage(`読込成功: ${data.name}`); closeLoadModal();
+            } else {
+                showMessage("パターンが見つかりません", true);
+            }
         }
 
         function deletePattern(patternName, element) {
-            showConfirmModal(`「${patternName}」を削除してもよろしいですか？`, async () => {
-                try {
-                    await deleteDoc(doc(patternsCollectionRef, patternName));
-                    showMessage(`「${patternName}」を削除しました`);
-                    element.remove();
-                } catch(e) { console.error("Delete failed:", e); showMessage("削除に失敗しました", true); }
+            showConfirmModal(`「${patternName}」を削除してもよろしいですか？`, () => {
+                const patterns = getSavedPatterns();
+                delete patterns[patternName];
+                savePatterns(patterns);
+                showMessage(`「${patternName}」を削除しました`);
+                element.remove();
             });
         }
     });
